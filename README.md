@@ -30,6 +30,7 @@ But my personality is like this: If I feel annoyed because I can't do something 
 5. Press the Hotkey, switch to your target window, and let the tool do the magic!
 
 *(Check out the demo videos to see exactly how it works!)*
+[![Signsei - In game demo](https://img.youtube.com/vi/Zqyv4lj2z7Y/0.jpg)](https://www.youtube.com/watch?v=Zqyv4lj2z7Y)
 
 ## 🛠️ Open Source
 Honestly, I can't think of any useful application for this outside of gaming. But whatever, if you like beautiful signatures or just want to use it for some silly desktop tricks, give it a try. 

@@ -1,0 +1,35 @@
+{
+  "name": "signsei",
+  "productName": "Signsei",
+  "version": "1.0.0",
+  "description": "Auto-draw signature tool for Blue Archive",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "author": "Tanyan",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^40.8.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.tanyan.signsei",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "extraFiles": [
+      "core_draw.exe",
+      "MomoSignature-Regular.ttf",
+      "AutoHotkey.exe",
+      "locales"
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}

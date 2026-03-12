@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin: 0; overflow: hidden; background-color: rgba(0, 0, 0, 0.3); font-family: 'Segoe UI', sans-serif; user-select: none; }
+    svg { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+    .polygon-valid { fill: rgba(0, 255, 255, 0.1); stroke: #00ffff; stroke-width: 2; stroke-dasharray: 5, 5; }
+    .polygon-invalid { fill: rgba(239, 68, 68, 0.2); stroke: #ef4444; stroke-width: 3; stroke-dasharray: 5, 5; }
+    .corner { fill: white; stroke: #00ffff; stroke-width: 3; cursor: crosshair; transition: r 0.1s; }
+    .corner:hover { fill: #00ffff; r: 10; }
+    .label { fill: white; font-weight: bold; font-size: 16px; pointer-events: none; text-shadow: 1px 1px 2px black; }
+    
+    #panel { position: absolute; top: 20px; left: 20px; background: rgba(15, 23, 42, 0.95); color: white; padding: 15px 20px; border-radius: 8px; border: 1px solid #00ffff; z-index: 10; cursor: move; box-shadow: 0 4px 15px rgba(0, 255, 255, 0.2); width: 290px; }
+    input, select, button { font-family: inherit; font-size: 13px; box-sizing: border-box; }
+    select { padding: 5px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 4px; outline: none; }
+    button { color: #0f172a; border: none; padding: 8px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.2s, filter 0.2s; }
+    button:hover:not(:disabled) { filter: brightness(1.1); }
+    button:disabled { background: #64748b !important; color: #94a3b8 !important; cursor: not-allowed; }
+    
+    #drawBtn { background: #fbbf24; }
+    #resetBtn { background: #94a3b8; color: white; }
+    #minBtn { background: #3b82f6; color: white; } 
+    #closeBtn { background: #00ffff; }
+    #hotkeyBtn { background: #334155; color: #38bdf8; border: 1px dashed #38bdf8; font-size: 12px; }
+    .tool-btn { background: #334155; color: white; border: 1px solid #475569; font-size: 12px; }
+    .tool-btn:hover { background: #475569; }
+
+    .custom-select { position: relative; flex: 1; }
+    .select-selected { background: #1e293b; color: white; padding: 6px 10px; border: 1px solid #475569; border-radius: 4px; cursor: pointer; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .select-selected:after { content: '▼'; position: absolute; right: 10px; font-size: 10px; color: #94a3b8; line-height: 20px; }
+    .select-items { position: absolute; background: #1e293b; top: 100%; left: 0; right: 0; z-index: 99; border: 1px solid #475569; border-radius: 4px; max-height: 250px; overflow-y: auto; margin-top: 2px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+    .select-search { width: 100%; box-sizing: border-box; padding: 8px; background: #0f172a; color: white; border: none; border-bottom: 1px solid #475569; outline: none; position: sticky; top: 0; }
+    .select-item { padding: 8px 10px; cursor: pointer; color: white; font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .select-item:hover { background: #334155; }
+    .select-hide { display: none !important; }
+
+    #fontModal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: center; }
+    .modal-content { background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #00ffff; color: white; width: 380px; text-align: center; box-shadow: 0 10px 25px rgba(0,255,255,0.2); }
+  </style>
+</head>
+<body>
+
+  <div id="fontModal">
+    <div class="modal-content">
+      <h3 style="margin-top: 0; color: #00ffff;" data-i18n="fontPromptTitle">Tích hợp Phông chữ hệ thống</h3>
+      <p style="font-size: 14px; color: #cbd5e1; margin-bottom: 20px; line-height: 1.5;" data-i18n="fontPromptDesc">Chương trình đã có sẵn phông chữ <b>Momo Signature</b>, nhưng bạn có muốn quét và tích hợp thêm những phông chữ có sẵn trong máy tính không?</p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button id="btnYesFont" style="background: #4ade80; color: #0f172a; flex: 1;" data-i18n="fontBtnYes">Có</button>
+        <button id="btnNoFont" style="background: #64748b; color: white; flex: 1.5;" data-i18n="fontBtnNo">Không (Có thể thêm sau)</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel">
+    <h3 style="margin: 0 0 10px 0; pointer-events: none;" data-i18n="appTitle">✨ Signsei UI</h3>
+    <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 10px; pointer-events: none;" data-i18n="instruction">Kéo nút xanh lá để xoay, nút vàng để di chuyển.</div>
+    
+    <div id="updateBanner" style="display: none; background: rgba(56, 189, 248, 0.15); border: 1px dashed #38bdf8; color: #38bdf8; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; text-align: center; cursor: pointer; font-weight: bold; transition: all 0.2s;">
+      🎁 Có bản cập nhật mới! Nhấn để tải về.
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+      <select id="langSelect" style="flex: 0.8;">
+        <option value="vi">🇻🇳 Tiếng Việt</option>
+        <option value="en">🇬🇧 English</option>
+      </select>
+      
+      <div class="custom-select" id="fontDropdown">
+        <div class="select-selected" id="fontSelected">Momo Signature</div>
+        <div class="select-items select-hide" id="fontItems">
+          <input type="text" id="fontSearch" class="select-search" data-i18n-placeholder="fontSearch" placeholder="🔍 Tìm phông chữ...">
+          <div id="fontList"></div>
+        </div>
+      </div>
+    </div>
+
+    <select id="shapeSelect" style="width: 100%; margin-bottom: 10px;">
+      <option value="free" data-i18n="shapeFree">Tự do (Tứ giác lồi)</option>
+      <option value="rect" data-i18n="shapeRect">Hình chữ nhật</option>
+      <option value="square" data-i18n="shapeSquare">Hình vuông</option>
+      <option value="para" data-i18n="shapePara">Hình bình hành</option>
+      <option value="rhombus" data-i18n="shapeRhombus">Hình thoi</option>
+      <option value="trap_free" data-i18n="shapeTrapFree">Hình thang thường</option>
+      <option value="trap" data-i18n="shapeTrap">Hình thang cân</option>
+    </select>
+
+    <div style="display: flex; gap: 4px; margin-bottom: 10px;">
+      <button id="btnRotCCW" class="tool-btn" style="flex: 1;">↺ 90°</button>
+      <button id="btnRotCW" class="tool-btn" style="flex: 1;">↻ 90°</button>
+      <button id="btnFlipH" class="tool-btn" style="flex: 1;">↔</button>
+      <button id="btnFlipV" class="tool-btn" style="flex: 1;">↕</button>
+    </div>
+
+    <input type="text" id="signatureText" data-i18n-placeholder="placeholderText" placeholder="Nhập nội dung tại đây..." style="width: 100%; padding: 6px; margin-bottom: 10px;">
+    
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+      <span style="font-size: 13px; white-space: nowrap;" data-i18n="timeLabel">Thời gian:</span>
+      <input type="number" id="drawTime" value="3" step="0.5" min="0.5" style="width: 60px; padding: 4px; text-align: center;">
+      <span style="font-size: 13px;" data-i18n="timeUnit">giây</span>
+    </div>
+    
+    <div id="errorMsg" style="color: #ef4444; font-size: 12px; margin-bottom: 10px; display: none;" data-i18n="errorMsg">⚠️ Khung bị vặn chéo hoặc lõm!</div>
+
+    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+      <button id="drawBtn" style="flex: 2;" data-i18n="btnDraw">Bắt Đầu Ký!</button>
+      <button id="hotkeyBtn" style="flex: 1;">Phím: [ F8 ]</button>
+    </div>
+    
+    <div style="display: flex; gap: 8px;">
+      <button id="resetBtn" style="flex: 1;" data-i18n="btnReset">Đặt Lại</button>
+      <button id="minBtn" style="flex: 1;" data-i18n="btnMinimize">Thu Nhỏ</button>
+      <button id="closeBtn" style="flex: 1;" data-i18n="btnClose">Đóng</button>
+    </div>
+  </div>
+
+  <svg id="canvas"><polygon class="polygon-valid" id="poly" points=""></polygon></svg>
+
+  <script>
+    const { exec } = require('child_process'); 
+    const { ipcRenderer } = require('electron');
+    const fs = require('fs');
+    const path = require('path');
+
+    let i18nDict = {}; 
+    let currentHotkey = "F8"; 
+
+    function loadLanguage(lang) {
+      try {
+        const appDir = process.cwd();
+        
+        const possiblePaths = [
+          path.join(__dirname, 'locales', `${lang}.json`),
+          path.join(appDir, 'locales', `${lang}.json`),
+          path.join(__dirname, `${lang}.json`),
+          path.join(appDir, `${lang}.json`)
+        ];
+
+        let finalPath = null;
+        for (let p of possiblePaths) {
+          if (fs.existsSync(p)) {
+            finalPath = p;
+            break;
+          }
+        }
+
+        if (finalPath) {
+          const rawData = fs.readFileSync(finalPath, 'utf8');
+          i18nDict = JSON.parse(rawData);
+
+          document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (i18nDict[key]) el.innerHTML = i18nDict[key]; 
+          });
+
+          document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (i18nDict[key]) el.placeholder = i18nDict[key];
+          });
+
+          const hotkeyBtn = document.getElementById('hotkeyBtn');
+          if (!hotkeyBtn.innerText.includes("...")) {
+            hotkeyBtn.innerText = i18nDict["hotkeyLabel"].replace("{0}", currentHotkey);
+          }
+
+          localStorage.setItem('appLang', lang);
+        } else {
+          alert(`Lỗi: Không tìm thấy file ${lang}.json!\nRadar đã quét thử các vị trí:\n1. ${possiblePaths[0]}\n2. ${possiblePaths[1]}\nBạn kiểm tra lại xem có gõ sai tên thư mục "locales" không nhé!`);
+        }
+      } catch (error) { 
+        console.error("Lỗi nạp ngôn ngữ / Translation load error:", error); 
+        alert("Lỗi khi đọc file ngôn ngữ (Có thể file JSON bị thiếu dấu phẩy, sai cú pháp):\n" + error.message);
+      }
+    }
+
+    document.getElementById('langSelect').addEventListener('change', (e) => {
+      loadLanguage(e.target.value);
+    });
+
+    const savedLang = localStorage.getItem('appLang') || 'vi';
+    document.getElementById('langSelect').value = savedLang;
+    loadLanguage(savedLang);
+
+    const fontSelected = document.getElementById('fontSelected');
+    const fontItems = document.getElementById('fontItems');
+    const fontSearch = document.getElementById('fontSearch');
+    const fontList = document.getElementById('fontList');
+    const fontModal = document.getElementById('fontModal');
+    let currentFontFile = 'MomoSignature-Regular.ttf';
+    let fontsIntegrated = localStorage.getItem('fontsIntegrated') === 'true';
+
+    const fontStyleSheet = document.createElement('style');
+    document.head.appendChild(fontStyleSheet);
+
+    function createFontOption(fileName, displayName, safeFamilyName = null) {
+      const item = document.createElement('div');
+      item.className = 'select-item';
+      item.textContent = displayName;
+      
+      if (safeFamilyName) {
+        item.style.fontFamily = `'${safeFamilyName}', sans-serif`;
+      }
+
+      item.addEventListener('click', () => {
+        fontSelected.textContent = displayName;
+        if (safeFamilyName) fontSelected.style.fontFamily = `'${safeFamilyName}', sans-serif`;
+        else fontSelected.style.fontFamily = '';
+        currentFontFile = fileName;
+        fontItems.classList.add('select-hide');
+      });
+      fontList.appendChild(item);
+    }
+
+    function renderAddMore() {
+      const item = document.createElement('div');
+      item.className = 'select-item add-more-opt';
+      item.setAttribute('data-i18n', 'fontAddMore');
+      item.textContent = i18nDict['fontAddMore'] || 'Thêm...';
+      item.style.fontStyle = 'italic';
+      item.style.color = '#94a3b8';
+      item.style.fontSize = '13px';
+      item.addEventListener('click', () => {
+        fontModal.style.display = 'flex';
+        fontItems.classList.add('select-hide');
+      });
+      fontList.appendChild(item);
+    }
+
+    function addSystemFonts() {
+      const fontDir = 'C:\\Windows\\Fonts';
+      try {
+        const files = fs.readdirSync(fontDir);
+        const ttfFiles = files.filter(f => f.toLowerCase().endsWith('.ttf'));
+        
+        const addMoreNodes = fontList.querySelectorAll('.add-more-opt');
+        addMoreNodes.forEach(n => n.remove());
+
+        let cssString = '';
+        ttfFiles.forEach(file => {
+          let displayName = file.substring(0, file.length - 4);
+          let safeFamilyName = displayName.replace(/[^a-zA-Z0-9]/g, '_'); 
+          cssString += `@font-face { font-family: '${safeFamilyName}'; src: url('file:///C:/Windows/Fonts/${file}'); }\n`;
+          createFontOption(file, displayName, safeFamilyName);
+        });
+        fontStyleSheet.textContent += cssString;
+        
+        fontsIntegrated = true;
+        localStorage.setItem('fontsIntegrated', 'true');
+      } catch(e) { console.error("Lỗi đọc thư mục Phông chữ / Font folder read error:", e); }
+    }
+
+    createFontOption('MomoSignature-Regular.ttf', 'Momo Signature', null);
+
+    if (fontsIntegrated) {
+      addSystemFonts(); 
+    } else {
+      renderAddMore();
+      if (!localStorage.getItem('fontPromptShown')) fontModal.style.display = 'flex';
+    }
+
+    fontSelected.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fontItems.classList.toggle('select-hide');
+      if(!fontItems.classList.contains('select-hide')) {
+        fontSearch.value = '';
+        fontSearch.dispatchEvent(new Event('input')); 
+        fontSearch.focus();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if(!fontSelected.contains(e.target) && !fontItems.contains(e.target)) {
+        fontItems.classList.add('select-hide');
+      }
+    });
+
+    fontSearch.addEventListener('input', (e) => {
+      const filter = e.target.value.toLowerCase();
+      const items = fontList.getElementsByClassName('select-item');
+      for (let item of items) {
+        if (item.textContent.toLowerCase().includes(filter) || item.classList.contains('add-more-opt')) {
+          item.style.display = '';
+        } else {
+          item.style.display = 'none';
+        }
+      }
+    });
+
+    document.getElementById('btnYesFont').addEventListener('click', () => {
+      fontModal.style.display = 'none';
+      localStorage.setItem('fontPromptShown', 'true');
+      addSystemFonts();
+    });
+
+    document.getElementById('btnNoFont').addEventListener('click', () => {
+      fontModal.style.display = 'none';
+      localStorage.setItem('fontPromptShown', 'true');
+    });
+
+
+    const svg = document.getElementById('canvas');
+    const poly = document.getElementById('poly');
+    const panel = document.getElementById('panel');
+    const drawBtn = document.getElementById('drawBtn');
+    const errorMsg = document.getElementById('errorMsg');
+    
+    let isDraggingPanel = false, offsetX, offsetY;
+    panel.addEventListener('mousedown', (e) => {
+      if(['INPUT', 'BUTTON', 'SELECT', 'OPTION'].includes(e.target.tagName) || e.target.closest('.custom-select')) return;
+      isDraggingPanel = true; offsetX = e.clientX - panel.offsetLeft; offsetY = e.clientY - panel.offsetTop;
+    });
+    
+    let cx = 500, cy = 300, angle = 0;          
+    let base_pts = [{ x: cx-200, y: cy-100 }, { x: cx+200, y: cy-100 }, { x: cx+200, y: cy+100 }, { x: cx-200, y: cy+100 }];
+    let pts = [], corners = [], labels = [];
+    const labelsText = ['A', 'B', 'C', 'D'];
+    let draggingIdx = -1;
+
+    function rotatePt(p, center, ang) {
+      let dx = p.x - center.x, dy = p.y - center.y;
+      return { x: center.x + dx * Math.cos(ang) - dy * Math.sin(ang), y: center.y + dx * Math.sin(ang) + dy * Math.cos(ang) };
+    }
+
+    for(let i=0; i<4; i++) {
+      const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      c.setAttribute("r", 7); c.setAttribute("class", "corner");
+      c.addEventListener("mousedown", (e) => { draggingIdx = i; e.stopPropagation(); });
+      svg.appendChild(c); corners.push(c);
+      const l = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      l.setAttribute("class", "label"); l.textContent = labelsText[i];
+      svg.appendChild(l); labels.push(l);
+    }
+
+    const centerCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    centerCircle.setAttribute("r", 10); centerCircle.setAttribute("fill", "#fbbf24"); centerCircle.setAttribute("cursor", "move");
+    svg.appendChild(centerCircle);
+    
+    let isDraggingCenter = false, startCx, startCy, startMx, startMy, startBasePts;
+    centerCircle.addEventListener("mousedown", (e) => {
+      isDraggingCenter = true; startCx = cx; startCy = cy;
+      startMx = e.clientX; startMy = e.clientY;
+      startBasePts = base_pts.map(p => ({x: p.x, y: p.y})); e.stopPropagation();
+    });
+
+    const rotLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    rotLine.setAttribute("stroke", "#4ade80"); rotLine.setAttribute("stroke-width", "2"); rotLine.setAttribute("stroke-dasharray", "4, 4");
+    svg.appendChild(rotLine);
+
+    const rotHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    rotHandle.setAttribute("r", 8); rotHandle.setAttribute("fill", "#4ade80"); rotHandle.setAttribute("cursor", "grab");
+    svg.appendChild(rotHandle);
+    let isDraggingRot = false;
+    rotHandle.addEventListener("mousedown", (e) => { isDraggingRot = true; e.stopPropagation(); });
+
+    document.getElementById('btnRotCCW').addEventListener('click', () => { angle -= Math.PI/2; updateDraw(); });
+    document.getElementById('btnRotCW').addEventListener('click', () => { angle += Math.PI/2; updateDraw(); });
+    document.getElementById('btnFlipH').addEventListener('click', () => { base_pts.forEach(p => { p.x = cx - (p.x - cx); }); updateDraw(); });
+    document.getElementById('btnFlipV').addEventListener('click', () => { base_pts.forEach(p => { p.y = cy - (p.y - cy); }); updateDraw(); });
+
+    function applyShapeType() {
+      const shape = document.getElementById('shapeSelect').value;
+      angle = 0; let w = 400, h = 200;
+      if (shape === 'free' || shape === 'rect') { base_pts = [{x: cx-w/2, y: cy-h/2}, {x: cx+w/2, y: cy-h/2}, {x: cx+w/2, y: cy+h/2}, {x: cx-w/2, y: cy+h/2}]; } 
+      else if (shape === 'square') { base_pts = [{x: cx-150, y: cy-150}, {x: cx+150, y: cy-150}, {x: cx+150, y: cy+150}, {x: cx-150, y: cy+150}]; } 
+      else if (shape === 'para') { base_pts = [{x: cx-w/2+50, y: cy-h/2}, {x: cx+w/2+50, y: cy-h/2}, {x: cx+w/2-50, y: cy+h/2}, {x: cx-w/2-50, y: cy+h/2}]; } 
+      else if (shape === 'rhombus') { base_pts = [{x: cx, y: cy-150}, {x: cx+200, y: cy}, {x: cx, y: cy+150}, {x: cx-200, y: cy}]; } 
+      else if (shape === 'trap_free') { base_pts = [{x: cx-150, y: cy-h/2}, {x: cx+50, y: cy-h/2}, {x: cx+w/2, y: cy+h/2}, {x: cx-w/2, y: cy+h/2}]; } 
+      else if (shape === 'trap') { base_pts = [{x: cx-100, y: cy-h/2}, {x: cx+100, y: cy-h/2}, {x: cx+w/2, y: cy+h/2}, {x: cx-w/2, y: cy+h/2}]; }
+      updateDraw();
+    }
+    document.getElementById('shapeSelect').addEventListener('change', applyShapeType);
+
+    function applyConstraints(idx, unrotPt) {
+      const shape = document.getElementById('shapeSelect').value;
+      if (shape === 'free') { base_pts[idx] = unrotPt; return; }
+      let dx = unrotPt.x - cx, dy = unrotPt.y - cy;
+
+      if (shape === 'rect') {
+         base_pts[idx] = unrotPt; let opp = (idx + 2) % 4; base_pts[opp] = {x: cx - dx, y: cy - dy};
+         if (idx % 2 === 0) { base_pts[(idx+1)%4] = {x: base_pts[opp].x, y: base_pts[idx].y}; base_pts[(idx+3)%4] = {x: base_pts[idx].x, y: base_pts[opp].y}; } 
+         else { base_pts[(idx+3)%4] = {x: base_pts[opp].x, y: base_pts[idx].y}; base_pts[(idx+1)%4] = {x: base_pts[idx].x, y: base_pts[opp].y}; }
+      } 
+      else if (shape === 'square') {
+         let size = Math.max(Math.abs(dx), Math.abs(dy)); dx = Math.sign(dx) * size || size; dy = Math.sign(dy) * size || size;
+         base_pts[idx] = {x: cx + dx, y: cy + dy}; let opp = (idx + 2) % 4; base_pts[opp] = {x: cx - dx, y: cy - dy};
+         if (idx % 2 === 0) { base_pts[(idx+1)%4] = {x: base_pts[opp].x, y: base_pts[idx].y}; base_pts[(idx+3)%4] = {x: base_pts[idx].x, y: base_pts[opp].y}; } 
+         else { base_pts[(idx+3)%4] = {x: base_pts[opp].x, y: base_pts[idx].y}; base_pts[(idx+1)%4] = {x: base_pts[idx].x, y: base_pts[opp].y}; }
+      } 
+      else if (shape === 'rhombus') {
+         if (idx === 0 || idx === 2) { base_pts[idx] = {x: cx, y: cy + dy}; base_pts[(idx+2)%4] = {x: cx, y: cy - dy}; } 
+         else { base_pts[idx] = {x: cx + dx, y: cy}; base_pts[(idx+2)%4] = {x: cx - dx, y: cy}; }
+      } 
+      else if (shape === 'para') { base_pts[idx] = unrotPt; let opp = (idx + 2) % 4; base_pts[opp] = {x: cx - dx, y: cy - dy}; } 
+      else if (shape === 'trap_free') {
+         base_pts[idx] = unrotPt;
+         if (idx === 0) base_pts[1].y = unrotPt.y; if (idx === 1) base_pts[0].y = unrotPt.y;
+         if (idx === 2) base_pts[3].y = unrotPt.y; if (idx === 3) base_pts[2].y = unrotPt.y;
+      } 
+      else if (shape === 'trap') {
+         base_pts[idx] = unrotPt; let sibling = (idx === 0) ? 1 : (idx === 1) ? 0 : (idx === 2) ? 3 : 2; base_pts[sibling] = {x: cx - dx, y: unrotPt.y};
+      }
+    }
+
+    function isConvex(p) {
+      const crossProduct = (a, b, c) => (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+      const cp1 = crossProduct(p[0], p[1], p[2]), cp2 = crossProduct(p[1], p[2], p[3]), cp3 = crossProduct(p[2], p[3], p[0]), cp4 = crossProduct(p[3], p[0], p[1]);
+      return (cp1 > 0 && cp2 > 0 && cp3 > 0 && cp4 > 0) || (cp1 < 0 && cp2 < 0 && cp3 < 0 && cp4 < 0);
+    }
+
+    function updateDraw() {
+      pts = base_pts.map(p => rotatePt(p, {x: cx, y: cy}, angle));
+      poly.setAttribute("points", pts.map(p => `${p.x},${p.y}`).join(" "));
+      
+      if (isConvex(pts)) { poly.setAttribute("class", "polygon-valid"); drawBtn.disabled = false; errorMsg.style.display = "none"; } 
+      else { poly.setAttribute("class", "polygon-invalid"); drawBtn.disabled = true; errorMsg.style.display = "block"; }
+
+      pts.forEach((p, i) => { 
+        corners[i].setAttribute("cx", p.x); corners[i].setAttribute("cy", p.y); 
+        let dx = p.x - cx, dy = p.y - cy; let dist = Math.sqrt(dx*dx + dy*dy);
+        labels[i].setAttribute("x", p.x + (dx/dist)*20 - 5); labels[i].setAttribute("y", p.y + (dy/dist)*20 + 5);
+      });
+      centerCircle.setAttribute("cx", cx); centerCircle.setAttribute("cy", cy);
+
+      let minY = Math.min(base_pts[0].y, base_pts[1].y, base_pts[2].y, base_pts[3].y);
+      let rot_base = { x: cx, y: minY - 45 }; let rot_pt = rotatePt(rot_base, {x: cx, y: cy}, angle);
+      rotLine.setAttribute("x1", cx); rotLine.setAttribute("y1", cy);
+      rotLine.setAttribute("x2", rot_pt.x); rotLine.setAttribute("y2", rot_pt.y);
+      rotHandle.setAttribute("cx", rot_pt.x); rotHandle.setAttribute("cy", rot_pt.y);
+    }
+
+    window.addEventListener("mousemove", (e) => {
+      if (isDraggingPanel) { panel.style.left = (e.clientX - offsetX) + 'px'; panel.style.top = (e.clientY - offsetY) + 'px'; }
+      if (isDraggingRot) { angle = Math.atan2(e.clientY - cy, e.clientX - cx) + Math.PI/2; updateDraw(); }
+      if (isDraggingCenter) {
+        let dx = e.clientX - startMx; let dy = e.clientY - startMy; cx = startCx + dx; cy = startCy + dy;
+        base_pts.forEach((p, i) => { base_pts[i].x = startBasePts[i].x + dx; base_pts[i].y = startBasePts[i].y + dy; }); updateDraw();
+      }
+      if (draggingIdx > -1) { 
+        let unrotPt = rotatePt({x: e.clientX, y: e.clientY}, {x: cx, y: cy}, -angle); applyConstraints(draggingIdx, unrotPt); updateDraw(); 
+      }
+    });
+
+    window.addEventListener("mouseup", () => { isDraggingPanel = false; draggingIdx = -1; isDraggingCenter = false; isDraggingRot = false; });
+    
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      cx = 500; cy = 300; angle = 0; document.getElementById('shapeSelect').value = 'free'; applyShapeType();
+      document.getElementById('signatureText').value = "";
+      document.getElementById('drawTime').value = "3";
+    });
+    
+    document.getElementById('minBtn').addEventListener('click', () => { ipcRenderer.send('minimize-window'); });
+    document.getElementById('closeBtn').addEventListener('click', () => { ipcRenderer.send('close-window'); });
+
+    let isDrawing = false;
+    const hotkeyBtn = document.getElementById('hotkeyBtn');
+
+    hotkeyBtn.addEventListener('click', () => {
+      hotkeyBtn.innerText = i18nDict["hotkeyWait"] || "Đang chờ phím...";
+      const keyHandler = (e) => {
+        e.preventDefault();
+        let key = e.key;
+        if (key === ' ') key = 'Space';
+        else if (key.length === 1) key = key.toUpperCase();
+        
+        currentHotkey = key;
+        hotkeyBtn.innerText = i18nDict["hotkeyLabel"] ? i18nDict["hotkeyLabel"].replace("{0}", currentHotkey) : `Phím: [ ${currentHotkey} ]`;
+        ipcRenderer.send('register-hotkey', currentHotkey);
+        window.removeEventListener('keydown', keyHandler);
+      };
+      window.addEventListener('keydown', keyHandler);
+    });
+
+    ipcRenderer.on('trigger-hotkey', () => {
+      if (!isDrawing) drawBtn.click(); 
+    });
+
+    drawBtn.addEventListener('click', () => {
+      if (isDrawing) return; 
+      
+      let text = document.getElementById('signatureText').value;
+      if (!text || text.trim() === "") text = "Sensei"; 
+      
+      const charCount = text.replace(/[^\p{L}\p{N}]/gu, '').length;
+      if (charCount > 30) {
+        const lang = localStorage.getItem('appLang') || 'vi';
+        if (lang === 'vi') alert(`Nội dung quá dài! Bạn đang có ${charCount} ký tự chữ/số.\nVui lòng giới hạn tối đa 30 ký tự để nét vẽ không bị lỗi.`);
+        else alert(`Text is too long! You have ${charCount} alphanumeric characters.\nPlease limit to 30 characters maximum to prevent drawing errors.`);
+        return; 
+      }
+
+      const drawTime = parseFloat(document.getElementById('drawTime').value) || 3;
+      
+      isDrawing = true;
+      ipcRenderer.send('minimize-window');
+      ipcRenderer.send('unregister-hotkey');
+
+      const dpr = window.devicePixelRatio || 1;
+      const physicalPts = pts.map(p => ({ x: Math.round(p.x * dpr), y: Math.round(p.y * dpr) }));
+      const ptsJson = JSON.stringify(physicalPts).replace(/"/g, '\\"');
+      
+      const appDir = process.cwd(); 
+      const pythonExe = path.join(appDir, 'core_draw.exe');
+      const ahkExe = path.join(appDir, 'AutoHotkey.exe');
+      const ahkScript = path.join(appDir, 'draw_signature.ahk');
+
+      const pythonCmd = `"${pythonExe}" "${text}" "${ptsJson}" ${drawTime} "${currentHotkey}" "${currentFontFile}"`;
+
+      exec(pythonCmd, { cwd: appDir }, (error) => {
+        if (error) { 
+          alert(`Lỗi sinh mã / Core error: ${error.message}\n(Make sure core_draw.exe is in the same folder)`); 
+          ipcRenderer.send('restore-window'); 
+          isDrawing = false; 
+          return; 
+        }
+        
+        const ahkCmd = `cmd /c start /wait "" "${ahkExe}" "${ahkScript}"`;
+        exec(ahkCmd, { cwd: appDir }, (err) => {
+           isDrawing = false;
+           ipcRenderer.send('restore-window'); 
+           ipcRenderer.send('register-hotkey', currentHotkey); 
+        });
+      });
+    });
+
+    updateDraw();
+    
+    const CURRENT_VERSION = "1.0.0";
+    const REPO_OWNER = "TanyanArchitect"; 
+    const REPO_NAME = "Signsei";
+    
+    async function checkForUpdates() {
+      try {
+        const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const latestVersion = data.tag_name.replace('v', ''); 
+        
+        if (isNewerVersion(CURRENT_VERSION, latestVersion)) {
+          const updateBanner = document.getElementById('updateBanner');
+          const lang = localStorage.getItem('appLang') || 'vi';
+          
+          let bannerText = i18nDict["updateBanner"] || "🎁 Có bản cập nhật mới ({0})! Nhấn để tải về.";
+          updateBanner.innerText = bannerText.replace("{0}", data.tag_name);
+          
+          updateBanner.style.display = 'block';
+          
+          updateBanner.addEventListener('click', () => {
+            require('electron').shell.openExternal(data.html_url);
+          });
+          
+          updateBanner.addEventListener('mouseenter', () => updateBanner.style.background = 'rgba(56, 189, 248, 0.3)');
+          updateBanner.addEventListener('mouseleave', () => updateBanner.style.background = 'rgba(56, 189, 248, 0.15)');
+        }
+      } catch (error) {
+        console.error("Lỗi kiểm tra cập nhật:", error);
+      }
+    }
+
+    function isNewerVersion(oldVer, newVer) {
+      const oldParts = oldVer.split('.').map(Number);
+      const newParts = newVer.split('.').map(Number);
+      for (let i = 0; i < newParts.length; i++) {
+        const a = newParts[i] || 0;
+        const b = oldParts[i] || 0;
+        if (a > b) return true;
+        if (a < b) return false;
+      }
+      return false;
+    }
+
+    setTimeout(checkForUpdates, 2000);
+  </script>
+</body>
+</html>
